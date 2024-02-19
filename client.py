@@ -1,11 +1,11 @@
 import requests
-from SDK.models import Token, SimpleResponse
 import datetime
-from util import datetime_to_sec
+import json
 from pydantic import ValidationError
 
-BASE_URL = 'https://api.bark.com'
-GRANT_TYPE = 'client_credentials'
+from SDK.models import Token, SimpleResponse
+from util import datetime_to_sec, get_url
+from config import GRANT_TYPE
 
 
 class Client(object):
@@ -21,9 +21,8 @@ class Client(object):
             'client_id': self.client_id,
             'client_secret': self.client_secret
         }
-        url = BASE_URL + 'oauth/token'
-
-        res = self.http_call(method='POST', url=url, data=data)
+        url = get_url('auth')
+        res = requests.post(url=url, headers=self.get_headers(), data=data)
         if res.status_code == 200:
             # куда еще поместить парсинг? у меня так и не получилось придумать.
             # тут model_validate_json парсит в момент складывания в модель
@@ -43,8 +42,8 @@ class Client(object):
 
     def check_credits(self):
         self.validate_token()
-        url = BASE_URL + 'seller/credit-balance'
-        res = SimpleResponse.model_validate_json(self.http_call(method='GET', url=url).content)
+        url = get_url('check_credits')
+        res = SimpleResponse.model_validate(self.http_call(method='GET', url=url))
         if res.status:
             return res.body
         return res.status
@@ -56,11 +55,11 @@ class Client(object):
             headers = None
 
         if method == 'GET':
-            return requests.get(url=url, headers=headers, data=data)
+            return json.loads(requests.get(url=url, headers=headers, data=data).content)
         if method == 'POST':
-            return requests.post(url=url, headers=headers, data=data)
+            return json.loads(requests.post(url=url, headers=headers, data=data).content)
         if method == 'DELETE':
-            return requests.delete(url=url, headers=headers, data=data)
+            return json.loads(requests.delete(url=url, headers=headers, data=data).content)
 
     def get_headers(self):
         return {

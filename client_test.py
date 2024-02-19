@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 from client import Client
-from SDK.models.auth import Token
+from SDK.models import Token
 import json
 
 

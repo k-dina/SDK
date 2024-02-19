@@ -1,3 +1,5 @@
+import re
+
 import requests
 import datetime
 import json
@@ -22,10 +24,11 @@ class Client(object):
             'client_secret': self.client_secret
         }
         url = get_url('auth')
+        # здесь не используется self.http_call, потому что тут единственное место,
+        # где мы обрабатываем коды ответа, а в других местах это пока не нужно
         res = requests.post(url=url, headers=self.get_headers(), data=data)
         if res.status_code == 200:
-            # куда еще поместить парсинг? у меня так и не получилось придумать.
-            # тут model_validate_json парсит в момент складывания в модель
+
             try:
                 self.token = Token.model_validate_json(res.content)
                 self.token.requested_at = datetime.datetime.now()
@@ -44,22 +47,27 @@ class Client(object):
         self.validate_token()
         url = get_url('check_credits')
         res = SimpleResponse.model_validate(self.http_call(method='GET', url=url))
+        # можем делать так, тк ответ содержит в себе статус True/False
         if res.status:
             return res.body
         return res.status
 
-    def http_call(self, method, url, data=None, headers=True):
+    def http_call(self, method, url, data=None, headers=True) -> dict:
         if headers:
             headers = self.get_headers()
         else:
             headers = None
 
         if method == 'GET':
-            return json.loads(requests.get(url=url, headers=headers, data=data).content)
-        if method == 'POST':
-            return json.loads(requests.post(url=url, headers=headers, data=data).content)
-        if method == 'DELETE':
-            return json.loads(requests.delete(url=url, headers=headers, data=data).content)
+            res = requests.get(url=url, headers=headers, data=data)
+        elif method == 'POST':
+            res = requests.post(url=url, headers=headers, data=data)
+        elif method == 'DELETE':
+            res = requests.delete(url=url, headers=headers, data=data)
+        else:
+            raise ValueError('request type not supported')
+
+        return json.loads(res.content)
 
     def get_headers(self):
         return {
